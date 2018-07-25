@@ -293,8 +293,6 @@ snapclust <- function(x, k, pop.ini = "ward", max.iter = 100, n.start = 10,
       out <- list(group = group, ll = ll)
 
       ## group membership probability
-      # rescaled.ll.mat <- .rescale.ll.mat(ll.mat)
-      # out$proba <- prop.table(t(exp(rescaled.ll.mat)), 1)
       out$proba <- sweep(t(ll.mat), 1, apply(ll.mat, 2, log_add_vector), "-")
       out$proba <- exp(out$proba)
 
@@ -520,68 +518,4 @@ log_add_vector <- function(v){
     total <- log_add(total,p)
   }
   return(total)
-}
-
-
-
-## This function rescales log-likelihood values prior to the computation of
-## group membership probabilities.
-
-## issue reported: prop.table(t(exp(ll.mat)), 1) can cause some numerical
-## approximation problems; if numbers are large, exp(...) will return Inf
-## and the group membership probabilities cannot be computed
-##
-## Solution: rather than use p_a = exp(ll_a) / (exp(ll_a) + exp(ll_b))
-## we can use p_a = exp(ll_a - C) /  (exp(ll_a - C) + exp(ll_b - C))
-
-## where 'C' is a sufficiently large constant so that exp(ll_i + C) is
-## computable; naively we could use C = max(ll.mat), but the problem is this
-## scaling can cause -Inf likelihoods too. In practice, we need to allow
-## different scaling for each individual.
-
-##out$proba <-
-## prop.table(t(exp(ll.mat)), 1)
-
-
-.rescale.ll.mat <- function(ll.mat) {
-  ## we first compute ad-hoc minimum and maximum values of log-likelihood; these
-  ## will be computer dependent; this is a quick fix, but better alternatives
-  ## can be found.
-
-  ## smallest ll such that exp(ll) is strictly > 0
-  new_min <- (0:-1000)[max(which(exp(0:-1000) > 0))]
-
-  ## largest ll such that exp(ll) is strictly less than +Inf
-  new_max <- (1:1000)[max(which(exp(1:1000) < Inf))]
-
-  counter <- 0
-
-
-  ## find rescaling for a single individual;
-  ## x: vector of ll values
-  rescale.ll.indiv <- function(x) {
-    ## set minimum to new_min
-    x  <- x - min(x) + new_min
-
-    ## set sum to the maximum
-    if (sum(x) > new_max) {
-      counter <<- counter + 1
-      x <- x - min(x) # reset min to 0
-      x <- new_min + (x / sum(x)) * new_max # range: new_min to new_max
-    }
-    return(x)
-  }
-
-  out <- apply(ll.mat, 2, rescale.ll.indiv)
-
-  if (counter > 0) {
-    msg <- paste("Large dataset syndrome:\n",
-                 "for", counter, "individuals,",
-                 "differences in log-likelihoods exceed computer precision;\n",
-                 "group membership probabilities are approximated\n",
-                 "(only trust clear-cut values)")
-    message(msg)
-  }
-
-  return(out)
 }
