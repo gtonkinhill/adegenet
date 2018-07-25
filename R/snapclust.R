@@ -293,8 +293,10 @@ snapclust <- function(x, k, pop.ini = "ward", max.iter = 100, n.start = 10,
       out <- list(group = group, ll = ll)
 
       ## group membership probability
-      rescaled.ll.mat <- .rescale.ll.mat(ll.mat)
-      out$proba <- prop.table(t(exp(rescaled.ll.mat)), 1)
+      # rescaled.ll.mat <- .rescale.ll.mat(ll.mat)
+      # out$proba <- prop.table(t(exp(rescaled.ll.mat)), 1)
+      out$proba <- sweep(t(ll.mat), 1, apply(ll.mat, 2, log_add_vector), "-")
+      out$proba <- exp(out$proba)
 
       out$converged <- converged
       out$n.iter <- counter
@@ -500,6 +502,24 @@ snapclust <- function(x, k, pop.ini = "ward", max.iter = 100, n.start = 10,
                 byrow=TRUE, nrow=nrow(pop.freq))
   dimnames(out) <- dimnames(pop.freq)
   return(out)
+}
+
+
+##This function add probabilities in log space
+log_add <- function(u, v){
+  if(is.infinite(u) && is.infinite(v)){
+    return(-Inf)
+  }
+  return(max(u, v) + log(exp(u - max(u, v)) + exp(v - max(u, v))))
+}
+
+#This function adds a vector of probabilities in log space
+log_add_vector <- function(v){
+  total <- -Inf
+  for (p in v){
+    total <- log_add(total,p)
+  }
+  return(total)
 }
 
 
